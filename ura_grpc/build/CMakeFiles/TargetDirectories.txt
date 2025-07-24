@@ -1,0 +1,3 @@
+/mnt/c/Users/codeuser/Code_project/URA_IA_TR/ura_grpc/build/CMakeFiles/server.dir
+/mnt/c/Users/codeuser/Code_project/URA_IA_TR/ura_grpc/build/CMakeFiles/edit_cache.dir
+/mnt/c/Users/codeuser/Code_project/URA_IA_TR/ura_grpc/build/CMakeFiles/rebuild_cache.dir

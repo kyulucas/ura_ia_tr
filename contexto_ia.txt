@@ -1,0 +1,43 @@
+# CONTEXTO DO PROJETO PARA AGENTE DE IA
+
+## Objetivo
+Desenvolver um backend Python para automação de voz, integração com SIP (chamadas telefônicas), IA (STT, TTS, GPT) e APIs externas, para uso em URA inteligente, cobrança automatizada, triagem, etc.
+
+## Histórico e Decisões Técnicas
+- O projeto iniciou tentando usar o binding Python do PJSIP/PJSUA2 para SIP, mas enfrentou muitos problemas de build no Windows e WSL, principalmente devido a incompatibilidades com Python 3.x e dependências.
+- Migrou-se temporariamente para o uso do baresipy (wrapper Python para baresip), facilitando a integração SIP em Python.
+- **MUDANÇA ESTRATÉGICA:** O projeto agora adota uma arquitetura de microserviço C++ para SIP, usando PJSIP diretamente, com comunicação via gRPC para o backend Python. O build e deploy são totalmente automatizados via Docker multi-stage, garantindo reprodutibilidade e isolamento.
+- Todas as dependências críticas (PJSIP, Protobuf, gRPC, Speex, GSM, iLBC, SRTP) são compiladas do source no Dockerfile, evitando conflitos de versões e problemas de ambiente.
+- O código do microserviço é versionado em repositório Git e clonado automaticamente no build Docker.
+
+## Stack Atual
+- Microserviço SIP em C++ (PJSIP, gRPC, Protobuf)
+- Backend Python 3.12+ (comunicação via gRPC)
+- Build e deploy automatizados via Docker multi-stage
+- Integração contínua via repositório Git
+
+## Problemas Enfrentados
+- Incompatibilidade do binding Python do PJSIP com Python 3.x
+- Conflitos de dependências nativas (OpenSSL, Protobuf, gRPC) em builds manuais
+- Dificuldade de reprodutibilidade em ambientes diferentes
+
+## Solução e Ação Atual
+- Toda a stack SIP foi migrada para um microserviço C++ puro, compilado e empacotado via Docker.
+- O Dockerfile multi-stage compila todas as dependências do source, garantindo ambiente limpo e reprodutível.
+- O backend Python comunica-se com o microserviço via gRPC, desacoplando a lógica SIP do restante do sistema.
+- O repositório Git centraliza o código e permite automação de build/deploy.
+
+## Próximos Passos
+1. Validar o build e execução do microserviço via Docker.
+2. Iniciar a Fase 2: Integração SIP Básica no microserviço (registro, chamada, eventos).
+3. Evoluir para integração de áudio, STT, TTS e lógica de URA inteligente.
+
+## Observações
+- Este arquivo deve ser atualizado a cada decisão importante e servir como referência para continuidade do projeto.
+- O Dockerfile e README_DOCKER.md documentam o processo de build e execução automatizados.
+- Para dúvidas ou continuidade, envie este arquivo para o próximo agente de IA ou desenvolvedor.
+
+# Ponto Atual do Projeto
+- **Stack SIP migrada para microserviço C++ com build Docker multi-stage.**
+- **Build e deploy reprodutíveis, sem dependências do host.**
+- **Próxima ação:** Integração SIP básica no microserviço (Fase 2). 
