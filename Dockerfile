@@ -10,7 +10,7 @@ ARG GIT_REPO_BRANCH=main
 RUN apt-get update && apt-get install -y \
     build-essential cmake git wget curl pkg-config \
     libssl-dev libasound2-dev libsqlite3-dev zlib1g-dev \
-    ca-certificates python3 python3-pip python3-venv
+    ca-certificates python3 python3-pip python3-venv autoconf automake libtool
 
 WORKDIR /build
 
