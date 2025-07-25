@@ -4,9 +4,10 @@
 Este projeto implementa um backend Python para integração com SIP, IA (STT, TTS, GPT) e automação de voz, usando uma arquitetura moderna baseada em microserviço C++ (PJSIP + gRPC). O sistema é multiplataforma e reprodutível via Docker.
 
 ## Novidades e Mudanças Recentes
-- **Nova arquitetura SIP:** O antigo módulo baresipy foi removido. Agora, toda a lógica SIP roda em um microserviço C++ dedicado, compilado e empacotado via Docker multi-stage.
+- **Nova arquitetura SIP:** O antigo módulo baresipy foi removido. Agora, toda a lógica SIP roda em um microserviço C++ dedicado, compilado e empacotado via Docker multi-stage otimizado.
 - **Comunicação via gRPC:** O backend Python comunica-se com o microserviço SIP usando gRPC, desacoplando a lógica de telefonia do restante do sistema.
-- **Build automatizado:** O build do microserviço e de todas as dependências (PJSIP, Protobuf, gRPC, codecs) é feito do zero via Docker, garantindo reprodutibilidade e isolamento.
+- **Build automatizado e rápido:** O build do microserviço e de todas as dependências (PJSIP, Protobuf, gRPC, codecs) é feito do zero via Docker, com as dependências pesadas compiladas antes do app para acelerar rebuilds.
+- **CMakeLists.txt:** A linkagem é manual e completa, incluindo todos os codecs e SRTP necessários para evitar erros de linkagem.
 - **Repositório Git:** O código do microserviço é clonado automaticamente no build Docker, facilitando CI/CD e automação.
 
 ## Como rodar com Docker
@@ -31,8 +32,8 @@ Este projeto implementa um backend Python para integração com SIP, IA (STT, TT
 Para detalhes completos, consulte o arquivo `README_DOCKER.md`.
 
 ## Notas importantes
-- Todas as dependências SIP (PJSIP, codecs, Protobuf, gRPC) são compiladas do source no Dockerfile.
-- O build é reprodutível e não depende do ambiente do host.
+- Todas as dependências SIP (PJSIP, codecs, Protobuf, gRPC) são compiladas do source no Dockerfile, usando as versões internas do PJSIP para codecs.
+- O build é reprodutível, rápido e não depende do ambiente do host.
 - O backend Python pode ser desenvolvido e testado separadamente, comunicando-se via gRPC.
 
 ## Continuidade

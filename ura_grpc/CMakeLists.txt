@@ -1,38 +1,64 @@
 cmake_minimum_required(VERSION 3.10)
 project(ura_grpc)
 
-# Inclui diretórios padrão do sistema
-include_directories(/usr/include /usr/local/include)
+# Adiciona os diretórios de include para gRPC/Protobuf (via apt) e PJSIP (compilado)
+include_directories(
+    ${CMAKE_CURRENT_BINARY_DIR}
+    /usr/include
+    /usr/local/include
+)
+
+# Adiciona os diretórios onde as bibliotecas (.a / .so) estão
 link_directories(/usr/lib /usr/local/lib)
 
-# Adiciona o executável
-add_executable(server server.cpp sip_service.pb.cc sip_service.grpc.pb.cc)
+# Define o executável e seus arquivos fonte
+add_executable(server
+    server.cpp
+    sip_service.pb.cc
+    sip_service.grpc.pb.cc
+)
 
-# Linkagem manual das bibliotecas necessárias
-# (ajuste a lista de libs PJSIP conforme necessário para seu build)
+# Linkagem manual completa, incluindo todos os codecs
 target_link_libraries(server
+    # gRPC e dependências do sistema
     grpc++
-    grpc
     protobuf
     pthread
-    pjsua2-x86_64-pc-linux-gnu
-    pjsua-x86_64-pc-linux-gnu
-    pjsip-ua-x86_64-pc-linux-gnu
-    pjsip-simple-x86_64-pc-linux-gnu
-    pjsip-x86_64-pc-linux-gnu
-    pjmedia-codec-x86_64-pc-linux-gnu
-    pjmedia-x86_64-pc-linux-gnu
-    pjmedia-videodev-x86_64-pc-linux-gnu
-    pjmedia-audiodev-x86_64-pc-linux-gnu
-    pjmedia-x86_64-pc-linux-gnu
-    pjnath-x86_64-pc-linux-gnu
-    pjlib-util-x86_64-pc-linux-gnu
-    pj-x86_64-pc-linux-gnu
+
+    # --- Bibliotecas PJSIP (do mais alto ao mais baixo nível) ---
+    pjsua2
+    pjsua
+    pjsip-ua
+    pjsip-simple
+    pjsip
+    
+    # --- Bibliotecas de Mídia e Codecs do PJSIP ---
+    pjmedia-codec
+    pjmedia-videodev
+    pjmedia-audiodev
+    pjmedia
+    pjnath
+    pjlib-util
+
+    # --- Codecs Específicos e SRTP ---
+    srtp
+    resample
+    gsmcodec
+    speex
+    ilbccodec
+    g7221codec
+    # yuv (geralmente para vídeo, pode ser opcional)
+    # webrtc (pode ser opcional, dependendo dos recursos de AEC)
+
+    # --- Biblioteca Base do PJSIP ---
+    pj
+
+    # --- Dependências Finais do Sistema ---
     ssl
     crypto
-    z
-    m
-    dl
-    rt
     asound
+    z
+    dl
+    m
+    rt
 )

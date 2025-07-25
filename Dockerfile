@@ -1,95 +1,92 @@
-# =========================
-# 1. BUILDER STAGE
-# =========================
+# ===================================================================
+# Dockerfile Final e Otimizado para o Microserviço SIP
+# ===================================================================
+
+# -------------------------------------------------------------------
+# Fase 1: BUILDER - Ambiente de compilação completo e otimizado
+# -------------------------------------------------------------------
 FROM ubuntu:22.04 AS builder
 
+# --- Argumentos para centralizar e facilitar a manutenção ---
+ARG PJSIP_VERSION=2.14
 ARG GIT_REPO_URL
 ARG GIT_REPO_BRANCH=main
 
-# Dependências de build
-RUN apt-get update && apt-get install -y \
-    build-essential cmake git wget curl pkg-config \
-    libssl-dev libasound2-dev libsqlite3-dev zlib1g-dev \
-    ca-certificates python3 python3-pip python3-venv autoconf automake libtool
+# --- Instalação de dependências do sistema em uma única camada ---
+# Usamos DEBIAN_FRONTEND para builds não-interativos e limpamos o cache do apt.
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    cmake \
+    git \
+    libssl-dev \
+    libasound2-dev \
+    libsqlite3-dev \
+    zlib1g-dev \
+    pkg-config \
+    ca-certificates \
+    autoconf \
+    automake \
+    libtool \
+    libgrpc++-dev \
+    libprotobuf-dev \
+    protobuf-compiler-grpc \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
 
-# Clone o repositório do microserviço
-RUN git clone --branch ${GIT_REPO_BRANCH} ${GIT_REPO_URL} app
-
-# =========================
-# 1.1. Protobuf
-# =========================
-WORKDIR /build
-RUN git clone --branch v3.21.6 https://github.com/protocolbuffers/protobuf.git
-WORKDIR /build/protobuf
-RUN git submodule update --init --recursive
-RUN mkdir build && cd build && \
-    cmake .. -DCMAKE_POSITION_INDEPENDENT_CODE=ON && \
-    make -j$(nproc) && make install
-RUN ldconfig
-
-# =========================
-# 1.2. gRPC
-# =========================
-WORKDIR /build
-RUN git clone --recurse-submodules -b v1.54.3 https://github.com/grpc/grpc
-WORKDIR /build/grpc
-RUN mkdir -p build && cd build && \
-    cmake .. -DgRPC_INSTALL=ON -DgRPC_BUILD_TESTS=OFF -DCMAKE_BUILD_TYPE=Release -DgRPC_PROTOBUF_PROVIDER=package && \
-    make -j$(nproc) && make install
-RUN ldconfig
-
-# =========================
-# 1.3. Codecs externos (Speex, GSM, iLBC, SRTP)
-# =========================
-WORKDIR /build
-# Speex
-RUN git clone https://github.com/xiph/speex.git && cd speex && ./autogen.sh && ./configure --enable-shared && make -j$(nproc) && make install
-# GSM
-RUN wget https://www.quut.com/gsm/gsm-1.0.22.tar.gz && tar xzf gsm-1.0.22.tar.gz && cd gsm-1.0.22 && make && make install
-# iLBC
-RUN git clone https://github.com/TimothyGu/libilbc.git && cd libilbc && cmake . && make -j$(nproc) && make install
-# SRTP
-RUN git clone https://github.com/cisco/libsrtp.git && cd libsrtp && git checkout v2.4.2 && ./configure --enable-openssl && make -j$(nproc) && make install
-RUN ldconfig
-
-# =========================
-# 1.4. PJSIP
-# =========================
-WORKDIR /build
-RUN git clone https://github.com/pjsip/pjproject.git
+# --- OTIMIZAÇÃO DE CACHE: Compilamos as dependências pesadas PRIMEIRO ---
+# 1.1. Compilar PJSIP (com dependências internas)
+RUN git clone --depth 1 --branch ${PJSIP_VERSION} https://github.com/pjsip/pjproject.git
 WORKDIR /build/pjproject
-RUN ./configure --prefix=/usr --enable-shared --with-external-speex --with-external-gsm --with-external-ilbc --with-external-srtp --with-ssl=/usr
-RUN make -j$(nproc) && make install
+# Removemos pacotes de dev externos para forçar o PJSIP a usar suas versões internas
+RUN apt-get remove -y libgsm-dev libspeex-dev libilbc-dev libsrtp2-dev || true
+# Configura, compila e instala PJSIP no sistema do container builder
+RUN ./configure --prefix=/usr/local --enable-shared --with-ssl
+RUN make dep
+RUN make -j$(nproc)
+RUN make install
 RUN ldconfig
 
-# =========================
-# 1.5. Build do microserviço
-# =========================
+# --- Agora, trazemos o código da nossa aplicação ---
+# Se o código do app mudar, o Docker re-executará apenas daqui para baixo.
+WORKDIR /build
+RUN git clone --branch ${GIT_REPO_BRANCH} ${GIT_REPO_URL} app
 WORKDIR /build/app/ura_grpc
-RUN mkdir build && cd build && cmake .. && make
 
-# =========================
-# 2. RUNNER STAGE
-# =========================
+# 1.2. Geração de Código gRPC
+# O .proto já vem do git clone. Esta etapa agora está no lugar certo.
+RUN protoc --grpc_out=. --plugin=protoc-gen-grpc=`which grpc_cpp_plugin` sip_service.proto && \
+    protoc --cpp_out=. sip_service.proto
+
+# 1.3. Build do nosso microserviço
+RUN rm -rf build && mkdir build && cd build && cmake .. && make
+
+# -------------------------------------------------------------------
+# Fase 2: RUNNER - Imagem final, limpa e otimizada
+# -------------------------------------------------------------------
 FROM ubuntu:22.04 AS runner
 
-# Dependências mínimas de runtime
-RUN apt-get update && apt-get install -y \
-    libssl3 libasound2 libsqlite3-0 zlib1g && \
-    rm -rf /var/lib/apt/lists/*
+# Instala apenas as bibliotecas de RUNTIME estritamente necessárias
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libssl3 \
+    libasound2 \
+    libsqlite3-0 \
+    libstdc++6 \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Copie apenas o executável e as libs necessárias do builder
+# Copia o executável e as bibliotecas compiladas do estágio builder
 COPY --from=builder /build/app/ura_grpc/build/server /app/server
 COPY --from=builder /usr/local/lib /usr/local/lib
-COPY --from=builder /usr/lib /usr/lib
+
+# Configura o path para que o sistema encontre as bibliotecas do PJSIP
+ENV LD_LIBRARY_PATH=/usr/local/lib
 
 EXPOSE 50051
 
-# Variáveis de ambiente SIP
+# Variáveis de ambiente para a configuração do SIP
 ENV SIP_USERNAME="" \
     SIP_PASSWORD="" \
     SIP_DOMAIN=""

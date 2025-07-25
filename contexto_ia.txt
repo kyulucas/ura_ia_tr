@@ -7,8 +7,10 @@ Desenvolver um backend Python para automação de voz, integração com SIP (cha
 - O projeto iniciou tentando usar o binding Python do PJSIP/PJSUA2 para SIP, mas enfrentou muitos problemas de build no Windows e WSL, principalmente devido a incompatibilidades com Python 3.x e dependências.
 - Migrou-se temporariamente para o uso do baresipy (wrapper Python para baresip), facilitando a integração SIP em Python.
 - **MUDANÇA ESTRATÉGICA:** O projeto agora adota uma arquitetura de microserviço C++ para SIP, usando PJSIP diretamente, com comunicação via gRPC para o backend Python. O build e deploy são totalmente automatizados via Docker multi-stage, garantindo reprodutibilidade e isolamento.
-- Todas as dependências críticas (PJSIP, Protobuf, gRPC, Speex, GSM, iLBC, SRTP) são compiladas do source no Dockerfile, evitando conflitos de versões e problemas de ambiente.
+- Todas as dependências críticas (PJSIP, Protobuf, gRPC, codecs) são compiladas do source no Dockerfile, usando as versões internas do PJSIP para codecs (GSM, Speex, iLBC, SRTP, etc.), evitando conflitos de versões e problemas de ambiente.
 - O código do microserviço é versionado em repositório Git e clonado automaticamente no build Docker.
+- O Dockerfile foi otimizado para compilar dependências pesadas antes do app, acelerando rebuilds.
+- O CMakeLists.txt foi ajustado para linkagem manual completa, incluindo todos os codecs e SRTP necessários.
 
 ## Stack Atual
 - Microserviço SIP em C++ (PJSIP, gRPC, Protobuf)
@@ -20,12 +22,14 @@ Desenvolver um backend Python para automação de voz, integração com SIP (cha
 - Incompatibilidade do binding Python do PJSIP com Python 3.x
 - Conflitos de dependências nativas (OpenSSL, Protobuf, gRPC) em builds manuais
 - Dificuldade de reprodutibilidade em ambientes diferentes
+- Erros de linkagem de codecs externos resolvidos com uso dos internos do PJSIP
 
 ## Solução e Ação Atual
 - Toda a stack SIP foi migrada para um microserviço C++ puro, compilado e empacotado via Docker.
-- O Dockerfile multi-stage compila todas as dependências do source, garantindo ambiente limpo e reprodutível.
+- O Dockerfile multi-stage compila todas as dependências do source, garantindo ambiente limpo e reprodutível, e foi otimizado para rebuilds rápidos.
 - O backend Python comunica-se com o microserviço via gRPC, desacoplando a lógica SIP do restante do sistema.
 - O repositório Git centraliza o código e permite automação de build/deploy.
+- O CMakeLists.txt faz linkagem manual completa, incluindo todos os codecs e SRTP necessários.
 
 ## Próximos Passos
 1. Validar o build e execução do microserviço via Docker.
@@ -38,6 +42,7 @@ Desenvolver um backend Python para automação de voz, integração com SIP (cha
 - Para dúvidas ou continuidade, envie este arquivo para o próximo agente de IA ou desenvolvedor.
 
 # Ponto Atual do Projeto
-- **Stack SIP migrada para microserviço C++ com build Docker multi-stage.**
-- **Build e deploy reprodutíveis, sem dependências do host.**
+- **Stack SIP migrada para microserviço C++ com build Docker multi-stage otimizado.**
+- **Build e deploy reprodutíveis, sem dependências do host, e rebuilds rápidos.**
+- **CMakeLists.txt com linkagem manual completa de codecs.**
 - **Próxima ação:** Integração SIP básica no microserviço (Fase 2). 
