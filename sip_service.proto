@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package sipservice;
+
+service SipService {
+  rpc MakeCall (CallRequest) returns (CallResponse);
+  rpc Hangup (HangupRequest) returns (HangupResponse);
+  rpc StreamAudio (stream AudioChunk) returns (stream AudioChunk);
+  rpc SubscribeToEvents (EventSubscriptionRequest) returns (stream CallEvent);
+}
+
+message CallRequest {
+  string account_id = 1;
+  string destination = 2;
+}
+
+message CallResponse {
+  bool success = 1;
+  string call_id = 2;
+  string error_message = 3;
+}
+
+message HangupRequest {
+  string call_id = 1;
+}
+
+message HangupResponse {
+  bool success = 1;
+  string error_message = 2;
+}
+
+message AudioChunk {
+  bytes data = 1;
+  int32 sample_rate = 2;
+  int32 channels = 3;
+}
+
+message EventSubscriptionRequest {
+  string client_id = 1;
+}
+
+message CallEvent {
+  string call_id = 1;
+  EventType event_type = 2;
+  string details = 3;
+}
+
+enum EventType {
+  UNKNOWN = 0;
+  CALL_RINGING = 1;
+  CALL_ESTABLISHED = 2;
+  CALL_TERMINATED = 3;
+  INCOMING_CALL = 4;
+}

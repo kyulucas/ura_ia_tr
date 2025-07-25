@@ -1,30 +1,56 @@
 import grpc
 import threading
-import time
+import os
+from dotenv import load_dotenv
+
 import sip_service_pb2
 import sip_service_pb2_grpc
 
-def event_listener(stub):
-    request = sip_service_pb2.EventSubscriptionRequest(client_id="python-client-1")
-    for event in stub.SubscribeToEvents(request):
-        print(f"[EVENTO] call_id={event.call_id} tipo={event.event_type} detalhes={event.details}")
+# Carrega as variáveis do arquivo .env
+load_dotenv()
+
+# --- Leitura das Configurações ---
+GRPC_ADDRESS = os.getenv("GRPC_SERVER_ADDRESS")
+DEST_NUMBER = os.getenv("DESTINATION_NUMBER")
+SIP_DOMAIN = os.getenv("SIP_DOMAIN")
+SIP_USERNAME = os.getenv("SIP_USERNAME")  # Para account_id
+
+
+def listen_for_events(stub):
+    """Função que roda em uma thread para escutar eventos do servidor."""
+    print("--- [Thread de Eventos] Se inscrevendo para receber eventos... ---")
+    try:
+        request = sip_service_pb2.EventSubscriptionRequest(client_id="python-client-1")
+        for event in stub.SubscribeToEvents(request):
+            print(f"\n[EVENTO RECEBIDO] Tipo: {event.event_type} Detalhes: {event.details}")
+    except grpc.RpcError as err:
+        print(f"--- [Thread de Eventos] Conexão encerrada: {err} ---")
+
 
 def main():
-    channel = grpc.insecure_channel('localhost:50051')
-    stub = sip_service_pb2_grpc.SipServiceStub(channel)
+    """Função principal que executa o teste."""
+    with grpc.insecure_channel(GRPC_ADDRESS) as channel:
+        grpc.channel_ready_future(channel).result(timeout=5)
+        stub = sip_service_pb2_grpc.SipServiceStub(channel)
 
-    # Inicia thread para escutar eventos
-    t = threading.Thread(target=event_listener, args=(stub,), daemon=True)
-    t.start()
+        # Inicia a thread para ouvir eventos
+        event_thread = threading.Thread(target=listen_for_events, args=(stub,), daemon=True)
+        event_thread.start()
 
-    # Chama MakeCall
-    print("[PYTHON] Chamando MakeCall...")
-    response = stub.MakeCall(sip_service_pb2.CallRequest(account_id="acc1", destination="sip:1234@domain"))
-    print(f"[PYTHON] Resposta MakeCall: success={response.success} call_id={response.call_id} erro={response.error_message}")
+        # Monta a URI de destino completa
+        destination_uri = f"sip:{DEST_NUMBER}@{SIP_DOMAIN}"
+        print(f"\n[PYTHON] Chamando MakeCall para: {destination_uri}")
+        try:
+            request = sip_service_pb2.CallRequest(account_id=SIP_USERNAME, destination=destination_uri)
+            response = stub.MakeCall(request)
+            print(f"[PYTHON] Resposta de MakeCall recebida: Sucesso={response.success}, CallID={response.call_id}, Msg='{response.error_message}'")
+        except grpc.RpcError as err:
+            print(f"[PYTHON] Erro ao chamar MakeCall: {err.details()}")
 
-    # Aguarda eventos
-    print("[PYTHON] Aguardando eventos...")
-    time.sleep(15)  # Tempo suficiente para receber todos os eventos
+        # Mantém a thread principal viva para receber eventos
+        event_thread.join(timeout=30)  # Espera por 30 segundos
+        print("\n[PYTHON] Teste finalizado.")
 
-if __name__ == "__main__":
+
+if __name__ == '__main__':
     main()
