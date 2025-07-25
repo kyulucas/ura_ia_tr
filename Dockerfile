@@ -77,14 +77,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Copia o executável do nosso servidor
+# Copiar binário e TODAS as bibliotecas compartilhadas necessárias do builder
 COPY --from=builder /build/app/ura_grpc/build/server /app/server
-
-# COPIA AS BIBLIOTECAS EXATAS USADAS NO BUILD (PJSIP, gRPC, Protobuf, etc.)
 COPY --from=builder /usr/local/lib /usr/local/lib
+COPY --from=builder /usr/lib /usr/lib
 
-# Configura o path para que o sistema encontre as bibliotecas copiadas
-ENV LD_LIBRARY_PATH=/usr/local/lib
+# Configura o path para que o sistema encontre as bibliotecas em ambos os locais
+ENV LD_LIBRARY_PATH=/usr/local/lib:/usr/lib
 
 EXPOSE 50051
 
