@@ -62,12 +62,12 @@ RUN protoc --grpc_out=. --plugin=protoc-gen-grpc=`which grpc_cpp_plugin` sip_ser
 # 1.3. Build do nosso microserviço
 RUN rm -rf build && mkdir build && cd build && cmake .. && make
 
-# -------------------------------------------------------------------
-# Fase 2: RUNNER - Imagem final, limpa e otimizada
-# -------------------------------------------------------------------
+# =========================
+# 2. Estágio runner: imagem mínima (VERSÃO FINAL E CORRIGIDA)
+# =========================
 FROM ubuntu:22.04 AS runner
 
-# Instala apenas as bibliotecas de RUNTIME estritamente necessárias
+# Instala apenas as dependências mínimas do sistema, SEM gRPC/Protobuf
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl3 \
     libasound2 \
@@ -77,16 +77,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Copia o executável e as bibliotecas compiladas do estágio builder
+# Copia o executável do nosso servidor
 COPY --from=builder /build/app/ura_grpc/build/server /app/server
+
+# COPIA AS BIBLIOTECAS EXATAS USADAS NO BUILD (PJSIP, gRPC, Protobuf, etc.)
 COPY --from=builder /usr/local/lib /usr/local/lib
 
-# Configura o path para que o sistema encontre as bibliotecas do PJSIP
+# Configura o path para que o sistema encontre as bibliotecas copiadas
 ENV LD_LIBRARY_PATH=/usr/local/lib
 
 EXPOSE 50051
 
-# Variáveis de ambiente para a configuração do SIP
+# Variáveis de ambiente para o SIP
 ENV SIP_USERNAME="" \
     SIP_PASSWORD="" \
     SIP_DOMAIN=""
