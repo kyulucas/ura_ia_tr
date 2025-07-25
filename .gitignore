@@ -1,0 +1,4 @@
+# Ignorar dependências externas e backups
+pjproject/
+pjproject_bkp_*/
+
