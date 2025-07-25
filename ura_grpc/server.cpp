@@ -37,10 +37,10 @@ std::string getenv_str(const char* var, const char* fallback = "") {
 
 // Função utilitária para garantir que a thread está registrada no PJLIB
 void ensure_pj_thread_registered() {
-    static pj_thread_desc thread_desc;
-    static pj_thread_t* thread_ptr;
+    pj_thread_desc desc;
+    pj_thread_t* thread;
     if (!pj_thread_is_registered()) {
-        pj_thread_register("grpc_worker_thread", thread_desc, &thread_ptr);
+        pj_thread_register("grpc_worker_thread", desc, &thread);
     }
 }
 
